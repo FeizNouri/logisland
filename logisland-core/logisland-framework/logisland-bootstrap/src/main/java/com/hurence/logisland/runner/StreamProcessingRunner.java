@@ -59,6 +59,14 @@ public class StreamProcessingRunner {
         Option conf = OptionBuilder.create("conf");
         options.addOption(conf);
 
+        OptionBuilder.withArgName("databricks");
+        OptionBuilder.withLongOpt("databricks-mode");
+        OptionBuilder.isRequired(false);
+        OptionBuilder.hasArg(false);
+        OptionBuilder.withDescription("databricks mode (configuration is read from DBFS)");
+        Option databricks = OptionBuilder.create("databricks");
+        options.addOption(databricks);
+
 
         Optional<EngineContext> engineInstance = Optional.empty();
         try {
@@ -68,27 +76,44 @@ public class StreamProcessingRunner {
             CommandLine line = parser.parse(options, args);
             String configFile = line.getOptionValue("conf");
 
+            boolean databricksMode = line.hasOption("databricks");
+
             // load the YAML config
-            LogislandConfiguration sessionConf = ConfigReader.loadConfig(configFile);
+            LogislandConfiguration sessionConf;
+
+            if (databricksMode) {
+                sessionConf = ConfigReader.loadConfigFromSharedFS(configFile);
+            } else {
+                sessionConf = ConfigReader.loadConfig(configFile);
+            }
+
+            System.out.println("Conf loaded");
 
             // instantiate engine and all the processor from the config
             engineInstance = ComponentFactory.getEngineContext(sessionConf.getEngine());
             assert engineInstance.isPresent();
             assert engineInstance.get().isValid();
 
+            System.out.println("Got engine instance");
             logger.info("starting Logisland session version {}", sessionConf.getVersion());
             logger.info(sessionConf.getDocumentation());
         } catch (Exception e) {
+            System.out.println("ERROR: " + e.getMessage());
             logger.error("unable to launch runner : {}", e);
         }
 
         try {
             // start the engine
+            System.out.println("Will load engine contexte");
             EngineContext engineContext = engineInstance.get();
+            System.out.println("Will start engine");
             engineInstance.get().getEngine().start(engineContext);
+            System.out.println("Engine started");
             engineContext.getEngine().awaitTermination(engineContext);
+            System.out.println("Terminated");
             System.exit(0);
         } catch (Exception e) {
+            System.out.println("ERROR (engine): " + e.getMessage());
             logger.error("something went bad while running the job : {}", e);
             System.exit(-1);
         }

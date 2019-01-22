@@ -60,9 +60,11 @@ public class PluginLoader {
         ClassLoader cl = Thread.currentThread().getContextClassLoader();
         while (cl != null) {
             if (cl instanceof URLClassLoader) {
+                // Load archives from the first URLClassLoader found in the chain then stop
                 urls.addAll(Arrays.asList(((URLClassLoader) cl).getURLs()));
-                cl = cl.getParent();
+                break;
             }
+            cl = cl.getParent();
         }
 
 

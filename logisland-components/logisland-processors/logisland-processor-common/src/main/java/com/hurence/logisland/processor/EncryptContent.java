@@ -1,22 +1,27 @@
 package com.hurence.logisland.processor;
 
 
+import com.hurence.logisland.annotation.documentation.CapabilityDescription;
+import com.hurence.logisland.annotation.documentation.Tags;
+import com.hurence.logisland.component.AllowableValue;
+import com.hurence.logisland.component.PropertyDescriptor;
+import com.hurence.logisland.logging.ComponentLog;
+import com.hurence.logisland.record.Record;
+import com.hurence.logisland.validator.StandardValidators;
+import com.hurence.logisland.validator.ValidationContext;
+import com.hurence.logisland.validator.ValidationResult;
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
+import org.apache.commons.lang3.StringUtils;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
+
 import java.nio.charset.StandardCharsets;
 import java.security.Security;
 import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import com.hurence.logisland.record.Record;
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
-import org.apache.commons.lang3.StringUtils;
-
 
 /*
 import org.apache.nifi.annotation.behavior.EventDriven;
@@ -27,43 +32,12 @@ import org.apache.nifi.annotation.behavior.SupportsBatching;
 import org.apache.nifi.annotation.behavior.SystemResource;
 import org.apache.nifi.annotation.behavior.SystemResourceConsideration;
 */
-
-
-import com.hurence.logisland.annotation.documentation.CapabilityDescription; // import org.apache.nifi.annotation.documentation.CapabilityDescription;
-import com.hurence.logisland.annotation.documentation.Tags; //import org.apache.nifi.annotation.documentation.Tags;
-
-import com.hurence.logisland.component.AllowableValue; //import org.apache.nifi.components.AllowableValue;
-import com.hurence.logisland.component.PropertyDescriptor; //import org.apache.nifi.components.PropertyDescriptor;
-
-
-import com.hurence.logisland.validator.ValidationContext; //import org.apache.nifi.components.ValidationContext;
-import com.hurence.logisland.validator.ValidationResult; //import org.apache.nifi.components.ValidationResult;
-
-
-import com.hurence.logisland.processor.ExpressionLanguageScope; //import org.apache.nifi.expression.ExpressionLanguageScope;
-
 //import org.apache.nifi.flowfile.FlowFile;
 //import org.apache.nifi.flowfile.attributes.CoreAttributes;
-
-import com.hurence.logisland.logging.ComponentLog; //import org.apache.nifi.logging.ComponentLog;
-import com.hurence.logisland.processor.AbstractProcessor; //import org.apache.nifi.processor.AbstractProcessor;
-import com.hurence.logisland.processor.ProcessContext; //import org.apache.nifi.processor.ProcessContext;
-
 //import com.hurence.logisland.processor. import org.apache.nifi.processor.ProcessSession;
 //import com.hurence.logisland.processor. import org.apache.nifi.processor.ProcessorInitializationContext;
 //import org.apache.nifi.processor.Relationship;
-import com.hurence.logisland.processor.ProcessException1; //import org.apache.nifi.processor.exception.ProcessException;
-import com.hurence.logisland.processor.StreamCallback; //import org.apache.nifi.processor.io.StreamCallback;
-import com.hurence.logisland.validator.StandardValidators; //import org.apache.nifi.processor.util.StandardValidators;
-import com.hurence.logisland.processor.EncryptionMethod; //import org.apache.nifi.security.util.EncryptionMethod;
-import com.hurence.logisland.processor.KeyDerivationFunction; //import org.apache.nifi.security.util.KeyDerivationFunction;
-import com.hurence.logisland.processor.CipherUtility; //import org.apache.nifi.security.util.crypto.CipherUtility;
-import com.hurence.logisland.processor.KeyedEncryptor; //import org.apache.nifi.security.util.crypto.KeyedEncryptor;
-import com.hurence.logisland.processor.OpenSSLPKCS5CipherProvider; //import org.apache.nifi.security.util.crypto.OpenPGPKeyBasedEncryptor;
-import com.hurence.logisland.processor.OpenPGPPasswordBasedEncryptor; //import org.apache.nifi.security.util.crypto.OpenPGPPasswordBasedEncryptor;
-import com.hurence.logisland.processor.PasswordBasedEncryptor; //import org.apache.nifi.security.util.crypto.PasswordBasedEncryptor;
 //import org.apache.nifi.util.StopWatch;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 //@EventDriven
 //@SideEffectFree
@@ -139,7 +113,7 @@ public class EncryptContent extends AbstractProcessor {
             .description("In a PGP decrypt mode, this is the private keyring passphrase")
             .required(false)
             .addValidator(StandardValidators.NON_EMPTY_VALIDATOR)
-            .expressionLanguageSupported(ExpressionLanguageScope.VARIABLE_REGISTRY)
+            .expressionLanguageSupported(true/*ExpressionLanguageScope.VARIABLE_REGISTRY*/)
             .sensitive(true)
             .build();
     public static final PropertyDescriptor RAW_KEY_HEX = new PropertyDescriptor.Builder()
@@ -198,7 +172,7 @@ public class EncryptContent extends AbstractProcessor {
         allowableValues.add(new AllowableValue(WEAK_CRYPTO_ALLOWED_NAME, "Allowed", "Operation will not be blocked and no alerts will be presented " +
                 "when unsafe combinations of encryption algorithms and passwords are provided"));
         allowableValues.add(buildDefaultWeakCryptoAllowableValue());
-        return allowableValues.toArAESKray(new AllowableValue[0]);
+        return allowableValues.toArray(new AllowableValue[0]);
     }
 
     private static AllowableValue buildDefaultWeakCryptoAllowableValue() {
@@ -245,8 +219,8 @@ public class EncryptContent extends AbstractProcessor {
         properties.add(PUBLIC_KEY_USERID);
         properties.add(PRIVATE_KEYRING);
         properties.add(PRIVATE_KEYRING_PASSPHRASE);
-        properties = Collections.unmodifiableList(properties);
-        return properties;
+        return Collections.unmodifiableList(properties);
+
     }
 
     public static boolean isPGPAlgorithm(final String algorithm) {

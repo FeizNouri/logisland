@@ -469,9 +469,11 @@ public class EncryptContent extends AbstractProcessor {
                         final String publicUserId = context.getPropertyValue(PUBLIC_KEY_USERID).toString();
                         encryptor = new OpenPGPKeyBasedEncryptor(algorithm, providerName, publicKeyring, publicUserId, null, filename);
                     } else if (!encrypt && privateKeyring != null) {
-                        final char[] keyringPassphrase = context.getProperty(PRIVATE_KEYRING_PASSPHRASE).evaluateAttributeExpressions().getValue().toCharArray();
-                        encryptor = new OpenPGPKeyBasedEncryptor(algorithm, providerName, privateKeyring, null, keyringPassphrase,
-                                filename);
+                        //final char[] keyringPassphrase = context.getProperty(PRIVATE_KEYRING_PASSPHRASE).evaluateAttributeExpressions().getValue().toCharArray();
+                        //encryptor = new OpenPGPKeyBasedEncryptor(algorithm, providerName, privateKeyring, null, keyringPassphrase,
+                          //      filename);
+                        encryptor = null;
+                        //TODO
                     } else {
                         final char[] passphrase = Normalizer.normalize(password, Normalizer.Form.NFC).toCharArray();
                         encryptor = new OpenPGPPasswordBasedEncryptor(algorithm, providerName, passphrase, filename);

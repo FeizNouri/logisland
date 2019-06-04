@@ -17,20 +17,7 @@ package com.hurence.logisland.processor;
  * limitations under the License.
  */
 
-import static org.bouncycastle.openpgp.PGPUtil.getDecoderStream;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import com.hurence.logisland.processor.ProcessException1; //import org.apache.nifi.processor.exception.ProcessException;
-import com.hurence.logisland.processor.StreamCallback; //import org.apache.nifi.processor.io.StreamCallback;
-import com.hurence.logisland.processor.Encryptor; //import org.apache.nifi.processors.standard.EncryptContent.Encryptor;
-import org.bouncycastle.openpgp.PGPCompressedData;
-import org.bouncycastle.openpgp.PGPEncryptedData;
-import org.bouncycastle.openpgp.PGPEncryptedDataList;
-import org.bouncycastle.openpgp.PGPException;
-import org.bouncycastle.openpgp.PGPLiteralData;
-import org.bouncycastle.openpgp.PGPPBEEncryptedData;
+import org.bouncycastle.openpgp.*;
 import org.bouncycastle.openpgp.jcajce.JcaPGPObjectFactory;
 import org.bouncycastle.openpgp.operator.PBEDataDecryptorFactory;
 import org.bouncycastle.openpgp.operator.PGPDigestCalculatorProvider;
@@ -40,6 +27,12 @@ import org.bouncycastle.openpgp.operator.jcajce.JcePBEDataDecryptorFactoryBuilde
 import org.bouncycastle.openpgp.operator.jcajce.JcePBEKeyEncryptionMethodGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
+import static org.bouncycastle.openpgp.PGPUtil.getDecoderStream;
 
 public class OpenPGPPasswordBasedEncryptor implements Encryptor {
     private static final Logger logger = LoggerFactory.getLogger(OpenPGPPasswordBasedEncryptor.class);
@@ -112,7 +105,7 @@ public class OpenPGPPasswordBasedEncryptor implements Encryptor {
 
                 PGPLiteralData literalData = (PGPLiteralData) obj;
                 InputStream plainIn = literalData.getInputStream();
-                final byte[] buffer = new byte[org.apache.nifi.processors.standard.util.PGPUtil.BLOCK_SIZE];
+                final byte[] buffer = new byte[PGPUtil.BLOCK_SIZE];
                 int len;
                 while ((len = plainIn.read(buffer)) >= 0) {
                     out.write(buffer, 0, len);
@@ -149,7 +142,7 @@ public class OpenPGPPasswordBasedEncryptor implements Encryptor {
         public void process(InputStream in, OutputStream out) throws IOException {
             try {
                 PGPKeyEncryptionMethodGenerator encryptionMethodGenerator = new JcePBEKeyEncryptionMethodGenerator(password).setProvider(provider);
-                org.apache.nifi.processors.standard.util.PGPUtil.encrypt(in, out, algorithm, provider, PGPEncryptedData.AES_128, filename, encryptionMethodGenerator);
+                PGPUtil.encrypt(in, out, algorithm, provider, PGPEncryptedData.AES_128, filename, encryptionMethodGenerator);
             } catch (Exception e) {
                 throw new ProcessException(e.getMessage());
             }

@@ -14,9 +14,12 @@ import sun.misc.BASE64Encoder;
 
 import javax.crypto.*;
 import javax.crypto.spec.DESKeySpec;
+import javax.crypto.spec.DESedeKeySpec;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.spec.KeySpec;
@@ -47,7 +50,21 @@ public class EncryptField extends AbstractProcessor {
     public static final String ENCRYPT_MODE = "Encrypt";
     public static final String DECRYPT_MODE = "Decrypt";
     public static final String AES = "AES";
+    public static final String AES_CBC_PKCS5 = "AES/CBC/PKCS5Padding";
+    public static final String AES_CBC_NoPAD = "AES/CBC/NoPadding";
+    public static final String AES_ECB_NoPAD = "AES/ECB/NoPadding";
+    public static final String AES_ECB_PKCS5 = "AES/ECB/PKCS5Padding";
     public static final String DES = "DES";
+    public static final String DES_CBC_NoPAD = "DES/CBC/NoPadding";
+    public static final String DES_CBC_PKCS5 = "DES/CBC/PKCS5Padding";
+    public static final String DES_ECB_NoPAD = "DES/ECB/NoPadding";
+    public static final String DES_ECB_PKCS5 = "DES/ECB/PKCS5Padding";
+    public static final String DESede = "DESede";
+    public static final String DESede_CBC_NoPAD = "DESede/CBC/NoPadding";
+    public static final String DESede_CBC_PKCS5 = "DESede/CBC/PKCS5Padding";
+    public static final String DESede_ECB_NoPAD = "DESede/ECB/NoPadding";
+    public static final String DESede_ECB_PKCS5 = "DESede/ECB/PKCS5Padding";
+
 
     public static final PropertyDescriptor MODE = new PropertyDescriptor.Builder()
             .name("Mode")
@@ -61,7 +78,7 @@ public class EncryptField extends AbstractProcessor {
             .name("Algo")
             .description("Specifies the algorithm that the cipher will use")
             .required(true)
-            .allowableValues(AES, DES)
+            .allowableValues(AES, AES_CBC_PKCS5, AES_CBC_NoPAD, AES_ECB_NoPAD, AES_ECB_PKCS5, DES, DES_CBC_NoPAD, DES_CBC_PKCS5, DES_ECB_NoPAD, DES_ECB_PKCS5, DESede, DESede_CBC_NoPAD, DESede_CBC_PKCS5, DESede_ECB_NoPAD, DESede_ECB_PKCS5)
             .defaultValue(AES)
             .build();
 
@@ -109,55 +126,66 @@ public class EncryptField extends AbstractProcessor {
                 .build();
     }
 
-    // check if the algorithm chosen is AES, otherwaie it is DES
+    // check if the algorithm chosen is AES, otherwaie it is DES or DESede
     public static boolean isAESAlgorithm(final String algorithm) {
         return algorithm.startsWith("A");
     }
 
-    // encrpyt or decript data with AES algo
+    // encrpyt or decript data with AES algo (with different transformation available)
     //if encrypt: input object / output byte[]
     //if decrypt: input field (the field will be in type FieldType.BYTES) / output object
     public class ExempleAES {
 
-        private static final String ALGO ="AES";
+        private final String ALGO_AES;
         private byte[] keyValue;
+        private Cipher cipher;
 
-        public ExempleAES(String key) {
+        public ExempleAES(String ALGO, String key) throws Exception {
+
+            ALGO_AES = ALGO;
             keyValue = key.getBytes();
+            cipher = Cipher.getInstance(ALGO_AES);
         }
 
         public byte[] encrypt (Object Data) throws Exception{
             Key key = generateKey();
-            Cipher c = Cipher.getInstance(ALGO);
-            c.init(Cipher.ENCRYPT_MODE, key);
-            byte[] encVal = c.doFinal(toByteArray(Data));
+            /*Cipher c = Cipher.getInstance(ALGO_AES);*/
+            cipher.init(Cipher.ENCRYPT_MODE, key);
+            byte[] encVal = cipher.doFinal(toByteArray(Data));
             return  encVal;
         }
 
         public Object decrypt (Field encryptedData) throws  Exception {
             Key key = generateKey();
-            Cipher c = Cipher.getInstance(ALGO);
-            c.init(Cipher.DECRYPT_MODE, key);
+            if (ALGO_AES.contains("AES/CBC")) {
+                byte[] iV = cipher.getIV();
+                IvParameterSpec spec = new IvParameterSpec(iV);
+                cipher.init(Cipher.DECRYPT_MODE, key, spec);
+            } else {
+                cipher.init(Cipher.DECRYPT_MODE, key);
+            }
+            /*Cipher c = Cipher.getInstance(ALGO_AES);
+            cipher.init(Cipher.DECRYPT_MODE, key);*/
             byte[] encryptedDataBytes = toByteArray(encryptedData);
-            byte[] decValue = c.doFinal(encryptedDataBytes);
+            byte[] decValue = cipher.doFinal(encryptedDataBytes);
             Object decryptedValue = toObject(decValue);
             return decryptedValue;
         }
 
         private Key generateKey() throws Exception {
-            Key key = new SecretKeySpec(keyValue, ALGO);
+            Key key = new SecretKeySpec(keyValue, "AES");
             return key;
         }
 
     }
 
-    // encrpyt or decript data with DES algo
+    // encrpyt or decript data with DES or DESede algo (with different transformation available)
     //if encrypt: input object / output byte[]
     //if decrypt: input field (the field will be in type FieldType.BYTES) / output object
     public class ExempleDES {
 
         private static final String UNICODE_FORMAT = "UTF8";
-        public static final String DES_ENCRYPTION_SHEME = "DES";
+        public final String DES_ENCRYPTION_SHEME;
         private KeySpec myKeySpec;
         private SecretKeyFactory mySecretKeyFactory;
         private Cipher cipher;
@@ -166,14 +194,21 @@ public class EncryptField extends AbstractProcessor {
         private String myEncryptionScheme;
         SecretKey key;
 
-        public ExempleDES(String myEncKey) throws Exception {
+        public ExempleDES(String algo, String myEncKey) throws Exception {
+            DES_ENCRYPTION_SHEME = algo;
             myEncryptionKey = myEncKey;
             myEncryptionScheme = DES_ENCRYPTION_SHEME;
             keyAsBytes = myEncryptionKey.getBytes(UNICODE_FORMAT);
-            myKeySpec = new DESKeySpec(keyAsBytes);
-            mySecretKeyFactory = SecretKeyFactory.getInstance(myEncryptionScheme);
+            if (DES_ENCRYPTION_SHEME.startsWith("DESede")) {
+                myKeySpec = new DESedeKeySpec(keyAsBytes);
+                mySecretKeyFactory = SecretKeyFactory.getInstance("DESede");
+                key = mySecretKeyFactory.generateSecret(myKeySpec);
+            } else {
+                myKeySpec = new DESKeySpec(keyAsBytes);
+                mySecretKeyFactory = SecretKeyFactory.getInstance("DES");
+                key = mySecretKeyFactory.generateSecret(myKeySpec);
+            }
             cipher = Cipher.getInstance(myEncryptionScheme);
-            key = mySecretKeyFactory.generateSecret(myKeySpec);
         }
 
         public byte[] encrypt (Object unencryptedString) {
@@ -190,12 +225,18 @@ public class EncryptField extends AbstractProcessor {
         public Object decrypt (Field encryptedString) {
             Object decryptedText = null;
             try{
-                cipher.init(Cipher.DECRYPT_MODE, key);
+                if (myEncryptionScheme.contains("CBC")) {
+                    byte[] iV = cipher.getIV();
+                    IvParameterSpec spec = new IvParameterSpec(iV);
+                    cipher.init(Cipher.DECRYPT_MODE, key, spec);
+                } else {
+                    cipher.init(Cipher.DECRYPT_MODE, key);
+                }
                 byte[] encryptedStringBytes = toByteArray(encryptedString);
                 byte[] plainText = cipher.doFinal(encryptedStringBytes);
                 decryptedText = toObject(plainText);
 
-            } catch (InvalidKeyException | IOException | IllegalBlockSizeException | BadPaddingException | ClassNotFoundException e) {
+            } catch (InvalidKeyException | IOException | IllegalBlockSizeException | BadPaddingException | InvalidAlgorithmParameterException | ClassNotFoundException e) {
             }
             return decryptedText;
         }
@@ -234,7 +275,7 @@ public class EncryptField extends AbstractProcessor {
                 for (Field field : allfieldsToEncrypt) {
 
                     if (isAESAlgorithm(context.getProperty(ALGO))) {
-                        ExempleAES encryptAES = new ExempleAES(context.getProperty(KEY));
+                        ExempleAES encryptAES = new ExempleAES(context.getProperty(ALGO), context.getProperty(KEY));
                         if (encrypt) {
                             record.setField(field.getName(), FieldType.BYTES, encryptAES.encrypt(field)); // is field an Object ??!!
                         } else {
@@ -242,7 +283,7 @@ public class EncryptField extends AbstractProcessor {
                         }
 
                     } else {
-                        ExempleDES encryptDES = new ExempleDES(context.getProperty(KEY));
+                        ExempleDES encryptDES = new ExempleDES(context.getProperty(ALGO), context.getProperty(KEY));
                         if (encrypt) {
                             record.setField(field.getName(), FieldType.BYTES, encryptDES.encrypt(field));
                         } else {
